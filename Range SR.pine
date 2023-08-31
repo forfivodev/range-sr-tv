@@ -1,0 +1,65 @@
+// © GM 2023
+//@version=5 
+
+indicator("Range SR", "Range SR", overlay = true, max_lines_count = 500)
+
+apr_length1                      = input(11, "Period", group = 'Stdev 1',inline = "0")
+i_timeframe1                     = input.string("12M", "   Resolution  ", ["5", "15", "30", "60", "120", "240", "D", "2D", "W", "M", "3M", "6M", "12M"], group = 'Stdev 1',inline = "0")
+qtd1                             = input(100, "Linhas ", group = 'Stdev 1',inline = "1")
+mult1                            = input(0.25, "   Multiplicador", group = 'Stdev 1',inline = "1")
+style_string1                    = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], group = 'Stdev 1', inline='3')
+border_style1                    = style_string1 == 'Dotted' ? line.style_dotted : style_string1 == 'Dashed' ? line.style_dashed : line.style_solid
+largura1                         = input(3, "Width", group = 'Stdev 1', inline='3')
+extendOption1                    = input.string("none", title="Extend", options=["none", "left", "right", "both"], group = 'Stdev 1', inline='3')
+lineExtend1  = extendOption1 == "left" ? extend.left :
+  extendOption1 == "right" ? extend.right :
+  extendOption1 == "both" ? extend.both :
+  extend.none
+cor1                             = input(color.rgb(255, 54, 252, 10), title = "", group = 'Stdev 1', inline = "3")
+
+enable_percent1                  = input(true, "Percentual", group = 'Stdev 1', inline = "2")
+enable_custom_stdev1             = input(false, "Custom stdev", group = 'Stdev 1',inline = "2")
+stdev1                           = input.float(0, "", group = 'Stdev 1',inline = "2")
+
+apr_length2                      = input(11, "Period", group = 'Stdev 2',inline = "0")
+i_timeframe2                     = input.string("12M", "   Resolution  ", ["5", "15", "30", "60", "120", "240", "D", "2D", "W", "M", "3M", "6M", "12M"], group = 'Stdev 2',inline = "0")
+qtd2                             = input(100, "Linhas ", group = 'Stdev 2',inline = "1")
+mult2                            = input(0.125, "   Multiplicador", group = 'Stdev 2',inline = "1")
+style_string2                    = input.string("Solid", "Style", options = ["Dotted","Dashed","Solid"], group = 'Stdev 2', inline='3')
+border_style2                    = style_string2 == 'Dotted' ? line.style_dotted : style_string2 == 'Dashed' ? line.style_dashed : line.style_solid
+largura2                         = input(1, "Width", group = 'Stdev 2', inline='3')
+start_bar_rsr                    = input(-40, "Start bar", group = 'Stdev 1', inline='3')
+end_bar_rsr                      = input(-20, "End bar", group = 'Stdev 1', inline='3')
+extendOption2                    = input.string("none", title="Extend", options=["none", "left", "right", "both"], group = 'Stdev 2', inline='3')
+lineExtend2  = extendOption2 == "left" ? extend.left :
+  extendOption2 == "right" ? extend.right :
+  extendOption2 == "both" ? extend.both :
+  extend.none
+cor2                             = input(color.rgb(255, 255, 255, 26), title = "", group = 'Stdev 2', inline = "3")
+enable_percent2                  = input(true, "Percentual", group = 'Stdev 2', inline = "2")
+enable_custom_stdev2             = input(false, "Custom stdev", group = 'Stdev 2',inline = "2")
+stdev2                           = input.float(0, "", group = 'Stdev 2',inline = "2")
+
+ticker = syminfo.tickerid
+
+//  FUNCTIONS
+f_security(_sym, _res, _src) =>
+    request.security(_sym, _res, _src[barstate.isrealtime ? 1 : 0], barmerge.gaps_off, lookahead=barmerge.lookahead_off)[barstate.isrealtime ? 0 : 1]
+
+f_gethl(p_tf, p_length) =>
+    [_high, _low] = request.security(ticker, p_tf, [ta.highest(high, p_length), ta.lowest(low, p_length)], lookahead=barmerge.lookahead_on) 
+
+yearlyRange_stDev1 = enable_custom_stdev1 ? stdev1 : f_security(ticker, i_timeframe1, ta.stdev(enable_percent1 ? (high - low) / close : (high - low), apr_length1))
+yearlyRange_stDev2 = enable_custom_stdev2 ? stdev2 : f_security(ticker, i_timeframe2, ta.stdev(enable_percent2 ? (high - low) / close : (high - low), apr_length2))
+
+[y_high1, y_low1] = f_gethl(i_timeframe1, apr_length1)
+[y_high2, y_low2] = f_gethl(i_timeframe2, apr_length2)
+if barstate.islast
+    for i = 0 to qtd1 by 1
+        y = enable_percent2 ? y_high2 - (i * mult2 * yearlyRange_stDev2 * y_high2) : y_high2 - (i * mult2 * yearlyRange_stDev2)
+        line1 = line.new(bar_index + start_bar_rsr - 1, y, bar_index + end_bar_rsr + 1, y, extend = lineExtend2, color = cor2, width = largura2, style = border_style2)
+        line.delete(line1[1])
+
+        y := enable_percent1 ? y_high1 - (i * mult1 * yearlyRange_stDev1 * y_high1) : y_high1 - (i * mult1 * yearlyRange_stDev1)
+        line2 = line.new(bar_index + start_bar_rsr - 1, y, bar_index + end_bar_rsr + 1, y, extend = lineExtend1, color = cor1, width = largura1, style = border_style1)
+        line.delete(line2[1])
